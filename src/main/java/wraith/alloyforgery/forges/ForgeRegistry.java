@@ -37,7 +37,47 @@ public class ForgeRegistry {
     private static final Map<ResourceLocation, ForgeDefinition> FORGE_DEFINITION_REGISTRY = new HashMap<>();
     private static final Map<ResourceLocation, Block> CONTROLLER_BLOCK_REGISTRY = new HashMap<>();
 
+    // --- NeoForge: registries are only writable while RegisterEvent is being fired ---
+    // Definitions whose material is already present when ModDataLoader runs (vanilla blocks, during mod construction)
+    // are queued and registered at the start of the BLOCK RegisterEvent. Materials registered later by other mods
+    // (e.g. mythicmetals:adamantite_block) trigger owo's runWhenPresent inside the RegisterEvent window and are
+    // registered immediately.
+    private static boolean registrationWindowOpen = false;
+    private static final List<Runnable> PENDING_REGISTRATIONS = new ArrayList<>();
+    private static final List<Block> PENDING_BLOCK_ENTITY_BLOCKS = new ArrayList<>();
+
+    public static void openRegistrationWindow() {
+        if (registrationWindowOpen) return;
+        registrationWindowOpen = true;
+
+        var pending = new ArrayList<>(PENDING_REGISTRATIONS);
+        PENDING_REGISTRATIONS.clear();
+        pending.forEach(Runnable::run);
+    }
+
+    public static void closeRegistrationWindow() {
+        registrationWindowOpen = false;
+        if (!PENDING_REGISTRATIONS.isEmpty()) {
+            throw new IllegalStateException("[Alloy Forgery] " + PENDING_REGISTRATIONS.size() + " forge controller(s) could not be registered before registries froze");
+        }
+    }
+
+    /**
+     * Blocks to add to the forge controller block entity type ({@code BlockEntityTypeAddBlocksEvent}),
+     * replaces Fabric's {@code BlockEntityType#addSupportedBlock}.
+     */
+    public static Block[] drainBlockEntityBlocks() {
+        var blocks = PENDING_BLOCK_ENTITY_BLOCKS.toArray(Block[]::new);
+        PENDING_BLOCK_ENTITY_BLOCKS.clear();
+        return blocks;
+    }
+
     static void registerDefinition(ResourceLocation forgeDefinitionId, ForgeDefinition definition) {
+        if (!registrationWindowOpen) {
+            PENDING_REGISTRATIONS.add(() -> registerDefinition(forgeDefinitionId, definition));
+            return;
+        }
+
         final var controllerBlock = new ForgeControllerBlock(definition);
         final var controllerBlockRegistryId = AlloyForgery.id(BuiltInRegistries.BLOCK.getKey(definition.material()).getPath() + "_forge_controller");
 
@@ -72,7 +112,7 @@ public class ForgeRegistry {
     private static void store(ResourceLocation id, ForgeDefinition definition, ForgeControllerBlock block) {
         FORGE_DEFINITION_REGISTRY.put(id, definition);
         CONTROLLER_BLOCK_REGISTRY.put(id, block);
-        AlloyForgery.FORGE_CONTROLLER_BLOCK_ENTITY.addSupportedBlock(block);
+        PENDING_BLOCK_ENTITY_BLOCKS.add(block);
     }
 
     public static final class Loader implements ModDataConsumer {
