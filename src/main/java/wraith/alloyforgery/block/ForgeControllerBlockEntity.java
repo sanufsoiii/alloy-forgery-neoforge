@@ -5,12 +5,8 @@ import io.wispforest.owo.ops.ItemOps;
 import io.wispforest.owo.serialization.format.nbt.NbtDeserializer;
 import io.wispforest.owo.serialization.format.nbt.NbtSerializer;
 import io.wispforest.owo.util.ImplementedInventory;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-import net.fabricmc.fabric.api.transfer.v1.storage.base.InsertionOnlyStorage;
-import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleVariantStorage;
-import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -44,10 +40,11 @@ import wraith.alloyforgery.mixin.HopperBlockEntityAccessor;
 import wraith.alloyforgery.recipe.AlloyForgeRecipe;
 import wraith.alloyforgery.recipe.AlloyForgeRecipeInput;
 import wraith.alloyforgery.utils.EndecUtils;
+import wraith.alloyforgery.utils.FluidVariantData;
 import java.util.*;
 
 @SuppressWarnings("UnstableApiUsage")
-public class ForgeControllerBlockEntity extends BlockEntity implements ImplementedInventory, WorldlyContainer, MenuProvider, InsertionOnlyStorage<FluidVariant> {
+public class ForgeControllerBlockEntity extends BlockEntity implements ImplementedInventory, WorldlyContainer, MenuProvider {
 
     private static final int[] DOWN_SLOTS = new int[]{10, 11};
     private static final int[] RIGHT_SLOTS = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -180,7 +177,7 @@ public class ForgeControllerBlockEntity extends BlockEntity implements Implement
     public void tick() {
         this.smeltProgress = Math.round((this.currentSmeltTime / (float) forgeDefinition.maxSmeltTime()) * 19);
         this.fuelProgress = Math.round((this.fuel / (float) forgeDefinition.fuelCapacity()) * 48);
-        this.lavaProgress = Math.round((this.fluidHolder.getAmount() / (float) FluidConstants.BUCKET) * 50);
+        this.lavaProgress = Math.round((this.fluidHolder.amount / (float) FluidHolder.BUCKET) * 50);
 
         level.updateNeighbourForOutputSignal(worldPosition, getBlockState().getBlock());
 
@@ -281,7 +278,7 @@ public class ForgeControllerBlockEntity extends BlockEntity implements Implement
             if (remainderList != null) this.handleForgingRemainders(remainderList);
 
             var outputStack = this.getItem(10);
-            var recipeOutput = recipe.craft(recipeInput, this.level.registryAccess());
+            var recipeOutput = recipe.assemble(recipeInput, this.level.registryAccess());
 
             recipe.consumeIngredients(recipeInput);
 
@@ -475,45 +472,83 @@ public class ForgeControllerBlockEntity extends BlockEntity implements Implement
         return new AlloyForgeScreenHandler(syncId, inv, this, properties);
     }
 
-    @Override
-    public long insert(FluidVariant resource, long maxAmount, TransactionContext transaction) {
-        return this.fluidHolder.insert(resource, maxAmount, transaction);
+    /**
+     * Fluid capability of the controller (registered in {@code AlloyForgery} through {@code RegisterCapabilitiesEvent}).
+     */
+    public IFluidHandler getFluidHandler() {
+        return this.fluidHolder;
     }
 
-    @Override
-    public Iterator<StorageView<FluidVariant>> iterator() {
-        return this.fluidHolder.iterator();
-    }
+    /**
+     * Port of the Fabric {@code SingleVariantStorage<FluidVariant>} lava tank (insertion only).
+     * <p>
+     * The tank is still stored and ticked in Fabric droplets (81000 per bucket) so the NBT format and
+     * all tick math stay identical to the original. NeoForge works in millibuckets (1000 per bucket);
+     * the only conversion happens here: 1 mB = {@link #DROPLETS_PER_MB} droplets.
+     */
+    private class FluidHolder implements IFluidHandler {
+        static final long BUCKET = 81000;
+        static final long DROPLETS_PER_MB = BUCKET / 1000;
+        static final long CAPACITY = BUCKET + 81;
 
-    private class FluidHolder extends SingleVariantStorage<FluidVariant> implements InsertionOnlyStorage<FluidVariant> {
-        @Override
-        protected FluidVariant getBlankVariant() {
-            return FluidVariant.blank();
+        FluidVariantData variant = FluidVariantData.BLANK;
+        long amount = 0;
+
+        private boolean canInsert(FluidStack stack) {
+            return stack.is(Fluids.LAVA);
         }
 
         @Override
-        protected long getCapacity(FluidVariant variant) {
-            return FluidConstants.BUCKET + 81;
+        public int getTanks() {
+            return 1;
         }
 
         @Override
-        protected void onFinalCommit() {
-            ForgeControllerBlockEntity.this.setChanged();
+        public FluidStack getFluidInTank(int tank) {
+            if (variant.isBlank() || amount <= 0) return FluidStack.EMPTY;
+            return new FluidStack(variant.fluid(), (int) (amount / DROPLETS_PER_MB), variant.components());
         }
 
         @Override
-        protected boolean canInsert(FluidVariant variant) {
-            return variant.isOf(Fluids.LAVA);
+        public int getTankCapacity(int tank) {
+            return (int) (CAPACITY / DROPLETS_PER_MB);
         }
 
         @Override
-        protected boolean canExtract(FluidVariant variant) {
-            return false;
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return canInsert(stack);
         }
 
         @Override
-        public Iterator<StorageView<FluidVariant>> iterator() {
-            return InsertionOnlyStorage.super.iterator();
+        public int fill(FluidStack resource, FluidAction action) {
+            if (resource.isEmpty() || !canInsert(resource)) return 0;
+
+            var resourceVariant = FluidVariantData.of(resource.getFluid(), resource.getComponentsPatch());
+            // SingleVariantStorage: insert only into a blank tank, or into one holding the same variant
+            if (!(variant.isBlank() || amount == 0 || variant.equals(resourceVariant))) return 0;
+
+            long insertedMb = Math.min(resource.getAmount(), (CAPACITY - amount) / DROPLETS_PER_MB);
+            if (insertedMb <= 0) return 0;
+
+            if (action.execute()) {
+                variant = resourceVariant;
+                amount += insertedMb * DROPLETS_PER_MB;
+                ForgeControllerBlockEntity.this.setChanged();
+            }
+
+            return (int) insertedMb;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            // Insertion-only storage (Fabric original: canExtract -> false)
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            // Insertion-only storage (Fabric original: canExtract -> false)
+            return FluidStack.EMPTY;
         }
     }
 }

@@ -4,8 +4,7 @@ import com.mojang.serialization.MapCodec;
 import io.wispforest.endec.impl.StructEndecBuilder;
 import io.wispforest.owo.particles.ClientParticles;
 import io.wispforest.owo.serialization.CodecUtils;
-import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
+import net.neoforged.neoforge.fluids.FluidUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -25,6 +24,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -45,7 +45,7 @@ public class ForgeControllerBlock extends BaseEntityBlock {
     public final ForgeDefinition forgeDefinition;
 
     public ForgeControllerBlock(ForgeDefinition forgeDefinition) {
-        super(FabricBlockSettings.copyOf(Blocks.BLACKSTONE));
+        super(BlockBehaviour.Properties.ofFullCopy(Blocks.BLACKSTONE));
         this.forgeDefinition = forgeDefinition;
         this.registerDefaultState(this.getStateDefinition().any().setValue(LIT, false));
     }
@@ -71,7 +71,7 @@ public class ForgeControllerBlock extends BaseEntityBlock {
                     player.getInventory().placeItemBackInInventory(new ItemStack(fuelDefinition.returnType()));
                 }
                 controller.addFuel(fuelDefinition.fuel());
-            } else if (FluidStorageUtil.interactWithFluidStorage(controller, player, hand)) {
+            } else if (FluidUtil.interactWithFluidHandler(player, hand, controller.getFluidHandler())) {
                 return ItemInteractionResult.SUCCESS;
             } else {
                 if (!controller.verifyMultiblock()) {

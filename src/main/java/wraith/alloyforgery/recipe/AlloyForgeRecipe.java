@@ -187,7 +187,7 @@ public class AlloyForgeRecipe implements Recipe<AlloyForgeRecipeInput> {
     // Attempt to test if the passed inventory is a Controller to try and get the forgeTier
     // Better to use the getOutput though other means rather than this if not a controller
     @Override
-    public ItemStack craft(AlloyForgeRecipeInput input, HolderLookup.Provider lookup) {
+    public ItemStack assemble(AlloyForgeRecipeInput input, HolderLookup.Provider lookup) {
         return (input.inventory() instanceof ForgeControllerBlockEntity controller)
                 ? getResult(controller.getForgeDefinition().forgeTier())
                 : getResultItem(lookup);
