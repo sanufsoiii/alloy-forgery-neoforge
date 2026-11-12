@@ -6,7 +6,6 @@ import com.mojang.logging.LogUtils;
 import io.wispforest.endec.Endec;
 import io.wispforest.endec.format.gson.GsonDeserializer;
 import io.wispforest.owo.serialization.CodecUtils;
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -20,7 +19,7 @@ import wraith.alloyforgery.recipe.AlloyForgeRecipe;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AlloyForgeryGlobalRemaindersLoader extends SimpleJsonResourceReloadListener implements IdentifiableResourceReloadListener {
+public class AlloyForgeryGlobalRemaindersLoader extends SimpleJsonResourceReloadListener {
 
     private static final Endec<ItemStack> RECIPE_RESULT_ENDEC = CodecUtils.toEndec(ItemStack.STRICT_CODEC);
 
@@ -61,8 +60,7 @@ public class AlloyForgeryGlobalRemaindersLoader extends SimpleJsonResourceReload
         });
     }
 
-    @Override
-    public ResourceLocation getFabricId() {
+    public ResourceLocation getId() {
         return ResourceLocation.fromNamespaceAndPath(AlloyForgery.MOD_ID, "forge_remainder");
     }
 }

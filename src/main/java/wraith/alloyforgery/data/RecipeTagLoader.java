@@ -1,12 +1,13 @@
 package wraith.alloyforgery.data;
 
 import io.wispforest.owo.network.ClientAccess;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.resources.CloseableResourceManager;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.tags.TagLoader;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
  * Tag Loader used to load Recipe Based tags with the resolving
  * process being delayed till Data Pack load has ended
  */
-public class RecipeTagLoader extends SimplePreparableReloadListener<Map<ResourceLocation, List<TagLoader.EntryWithSource>>> implements IdentifiableResourceReloadListener, ServerLifecycleEvents.ServerStarted, ServerLifecycleEvents.EndDataPackReload {
+public class RecipeTagLoader extends SimplePreparableReloadListener<Map<ResourceLocation, List<TagLoader.EntryWithSource>>> {
 
     private static final Map<ResourceLocation, Set<ResourceLocation>> RESOLVED_ENTRIES = new HashMap<>();
 
@@ -41,8 +42,7 @@ public class RecipeTagLoader extends SimplePreparableReloadListener<Map<Resource
         RAW_TAG_DATA.putAll(prepared);
     }
 
-    @Override
-    public ResourceLocation getFabricId() {
+    public ResourceLocation getId() {
         return AlloyForgery.id("recipe_tag");
     }
 
@@ -71,24 +71,25 @@ public class RecipeTagLoader extends SimplePreparableReloadListener<Map<Resource
     //--
 
     public void initEvents() {
-        ServerLifecycleEvents.END_DATA_PACK_RELOAD.register(this);
-        ServerLifecycleEvents.SERVER_STARTED.register(this);
+        // Fabric END_DATA_PACK_RELOAD -> OnDatapackSyncEvent without a target player (fired by /reload only)
+        NeoForge.EVENT_BUS.<OnDatapackSyncEvent>addListener(event -> {
+            if (event.getPlayer() == null) endDataPackReload(event.getPlayerList().getServer());
+        });
+        NeoForge.EVENT_BUS.<ServerStartedEvent>addListener(event -> onServerStarted(event.getServer()));
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            AlloyForgery.CHANNEL.serverHandle(handler.player).send(TagPacket.of(RESOLVED_ENTRIES));
+        NeoForge.EVENT_BUS.<PlayerEvent.PlayerLoggedInEvent>addListener(event -> {
+            if (event.getEntity() instanceof ServerPlayer player) {
+                AlloyForgery.CHANNEL.serverHandle(player).send(TagPacket.of(RESOLVED_ENTRIES));
+            }
         });
     }
 
-    @Override
-    public void endDataPackReload(MinecraftServer server, CloseableResourceManager resourceManager, boolean success) {
-        if (!success) return;
-
+    public void endDataPackReload(MinecraftServer server) {
         resolveEntries(server);
 
         AlloyForgery.CHANNEL.serverHandle(server).send(TagPacket.of(RESOLVED_ENTRIES));
     }
 
-    @Override
     public void onServerStarted(MinecraftServer server) {
         resolveEntries(server);
     }

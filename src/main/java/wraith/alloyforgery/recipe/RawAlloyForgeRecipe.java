@@ -11,7 +11,7 @@ import io.wispforest.owo.serialization.CodecUtils;
 import io.wispforest.owo.serialization.endec.MinecraftEndecs;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenCustomHashMap;
-import net.fabricmc.loader.api.FabricLoader;
+import net.neoforged.fml.loading.FMLLoader;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Tuple;
@@ -72,7 +72,7 @@ public record RawAlloyForgeRecipe(Map<Ingredient, Integer> inputs, OutputData ou
         for (CountedIngredient countedIngredient : list) {
             var ingredient = countedIngredient.ingredient();
 
-            if(unprocessedData.containsKey(ingredient) && (AlloyForgery.CONFIG.strictRecipeChecks() || FabricLoader.getInstance().isDevelopmentEnvironment())) {
+            if(unprocessedData.containsKey(ingredient) && (AlloyForgery.CONFIG.strictRecipeChecks() || !FMLLoader.isProduction())) {
                 var jsonData = Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, ingredient)
                         .result()
                         .map(JsonElement::toString)

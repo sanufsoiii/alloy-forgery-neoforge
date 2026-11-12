@@ -2,7 +2,6 @@ package wraith.alloyforgery.forges;
 
 import com.google.gson.*;
 import com.mojang.logging.LogUtils;
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -12,7 +11,7 @@ import org.slf4j.Logger;
 import wraith.alloyforgery.AlloyForgery;
 import java.util.Map;
 
-public class FuelDataLoader extends SimpleJsonResourceReloadListener implements IdentifiableResourceReloadListener {
+public class FuelDataLoader extends SimpleJsonResourceReloadListener {
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
@@ -37,8 +36,7 @@ public class FuelDataLoader extends SimpleJsonResourceReloadListener implements 
         });
     }
 
-    @Override
-    public ResourceLocation getFabricId() {
+    public ResourceLocation getId() {
         return AlloyForgery.id("forge_fuel_loader");
     }
 }
