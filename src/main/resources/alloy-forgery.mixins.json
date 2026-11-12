@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "wraith.alloyforgery.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "DataPackContentsMixin",
+    "DefaultedRegistryMixin",
+    "HopperBlockEntityAccessor",
+    "RecipeManagerAccessor",
+    "RecipeManagerMixin",
+    "RecipeEntryMixin",
+    "PlayerManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

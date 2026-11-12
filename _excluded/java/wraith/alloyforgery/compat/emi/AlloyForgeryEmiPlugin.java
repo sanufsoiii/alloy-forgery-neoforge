@@ -1,0 +1,33 @@
+package wraith.alloyforgery.compat.emi;
+
+import dev.emi.emi.api.EmiPlugin;
+import dev.emi.emi.api.EmiRegistry;
+import dev.emi.emi.api.recipe.EmiRecipeCategory;
+import dev.emi.emi.api.stack.EmiStack;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.block.Block;
+import wraith.alloyforgery.AlloyForgery;
+import wraith.alloyforgery.forges.ForgeRegistry;
+import wraith.alloyforgery.recipe.AlloyForgeRecipe;
+
+public class AlloyForgeryEmiPlugin implements EmiPlugin {
+
+    private static final ResourceLocation FORGE_ID = AlloyForgery.id("alloy_forge");
+    public static final EmiRecipeCategory FORGE_CATEGORY = new EmiRecipeCategory(FORGE_ID, EmiStack.of(ForgeRegistry.getControllerBlocks().get(0)));
+
+    @Override
+    public void register(EmiRegistry registry) {
+        registry.addCategory(FORGE_CATEGORY);
+
+        for (Block controller : ForgeRegistry.getControllerBlocks()) {
+            registry.addWorkstation(FORGE_CATEGORY, EmiStack.of(controller));
+        }
+
+        for (RecipeHolder<AlloyForgeRecipe> recipeEntry : registry.getRecipeManager().getAllRecipesFor(AlloyForgeRecipe.Type.INSTANCE)) {
+            registry.addRecipe(new AlloyForgeryEmiRecipe(recipeEntry));
+        }
+
+        registry.addRecipeHandler(AlloyForgery.ALLOY_FORGE_SCREEN_HANDLER_TYPE, new AlloyForgeryEmiRecipeHandler());
+    }
+}
