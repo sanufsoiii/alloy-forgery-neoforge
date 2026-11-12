@@ -1,8 +1,5 @@
 package wraith.alloyforgery.utils;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 
@@ -10,10 +7,10 @@ public class DataPackEvents {
 
     /**
      * Called before the Minecraft Server is about to sync tags and recipes to players. Similar to
-     * {@link ServerLifecycleEvents#SYNC_DATA_PACK_CONTENTS} as such is but only once at the head
+     * NeoForge's {@code OnDatapackSyncEvent} as such is but only once at the head
      * of {@link PlayerList#reloadResources()}
      */
-    public static final Event<BeforeSync> BEFORE_SYNC = EventFactory.createArrayBacked(BeforeSync.class, callbacks -> (server) -> {
+    public static final SimpleEvent<BeforeSync> BEFORE_SYNC = SimpleEvent.create(callbacks -> (server) -> {
         for (BeforeSync callback : callbacks) {
             callback.beforeSync(server);
         }

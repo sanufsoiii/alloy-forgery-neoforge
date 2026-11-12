@@ -2,9 +2,8 @@ package wraith.alloyforgery.utils;
 
 import com.google.common.collect.*;
 import com.mojang.logging.LogUtils;
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -31,10 +30,10 @@ public final class RecipeInjector {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     /**
-     * Event called on {@link ServerLifecycleEvents#SERVER_STARTED} or {@link DataPackEvents#BEFORE_SYNC} which adds
+     * Event called on {@link ServerStartedEvent} or {@link DataPackEvents#BEFORE_SYNC} which adds
      * new recipes to the RecipeManager before sync to Players
      */
-    public static final Event<AddRecipes> ADD_RECIPES = EventFactory.createArrayBacked(AddRecipes.class, addRecipes -> (instance) -> {
+    public static final SimpleEvent<AddRecipes> ADD_RECIPES = SimpleEvent.create(addRecipes -> (instance) -> {
         for (AddRecipes addRecipe : addRecipes) {
             addRecipe.addRecipes(instance);
         }
@@ -101,7 +100,7 @@ public final class RecipeInjector {
     //--
 
     public static void initEvents() {
-        ServerLifecycleEvents.SERVER_STARTED.register(RecipeInjector::injectRecipes);
+        NeoForge.EVENT_BUS.<ServerStartedEvent>addListener(event -> injectRecipes(event.getServer()));
 
         DataPackEvents.BEFORE_SYNC.register(RecipeInjector::injectRecipes);
     }
