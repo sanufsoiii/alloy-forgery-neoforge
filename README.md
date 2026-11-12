@@ -8,6 +8,12 @@ The original authors publish their own NeoForge builds only for 1.21.4 and newer
 
 The port builds and the client starts to the main menu without errors. **Gameplay has not been tested in a world yet**: expect bugs, and please report them (see below). Dedicated server has not been tested either.
 
+## Download
+
+- [CurseForge](https://www.curseforge.com/minecraft/mc-mods/alloy-forgery-unofficial)
+- [Modrinth](https://modrinth.com/mod/alloy-forgery-unofficial)
+- [GitHub Releases](https://github.com/sanufsoiii/alloy-forgery-neoforge/releases)
+
 ## Requirements
 
 - Minecraft 1.21.1, NeoForge 21.1.200 or newer
